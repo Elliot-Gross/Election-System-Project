@@ -61,6 +61,9 @@ def get_tallied_votes(canidates, ballots_df):
         for i,value in enumerate(ballots_df[column]):
             tallied_votes[value[0]] += value[1]
     
+    for key in tallied_votes.keys():
+        tallied_votes[key] = np.round(tallied_votes[key])
+        
     return tallied_votes
     
 def add_current_votes_column(ballots_df):
@@ -157,7 +160,7 @@ def get_top_winner_above_threshold(ballots_df, threshold, canidates):
     threshold : int
         The amount of votes needed to be considered a 'winner'.
     canidates : list
-        A list of all the canidates
+        A list of all the canidates.
 
     Returns
     -------
@@ -180,7 +183,7 @@ def get_top_winner_above_threshold(ballots_df, threshold, canidates):
                 
     return top_winner_above_threshold
 
-def redistribute_votes(ballots_df, threshold, top_winner_above_threshold):
+def redistribute_votes(ballots_df, threshold, top_winner_above_threshold, canidates):
     '''
     This method redistributes the votes of the winner that  above the threshold,
     to the other canidates.
@@ -201,15 +204,33 @@ def redistribute_votes(ballots_df, threshold, top_winner_above_threshold):
         The number of votes needed to be considered a 'winner'.
     top_winner_above_threshold : String
         The Canidate who's votes are being redistributed.
-
+    canidates : list
+        A list of all the canidates.
+        
     Returns
     -------
     None.
 
     '''
     
+    winners_votes = ballots_df[ballots_df['Current Votes'].apply(lambda x: x[0]) == top_winner_above_threshold]
+
+    tallied_votes = get_tallied_votes(canidates, ballots_df)
+    amount_of_winner_votes = tallied_votes[top_winner_above_threshold]
+    
+    excess_votes = amount_of_winner_votes - threshold
+    excess_votes_percentage = np.round(excess_votes/amount_of_winner_votes,3)
+    
+    print(excess_votes, excess_votes_percentage)
+    
+    winners_votes['Current Votes'] = ballots_df['Current Votes'].apply(lambda x: (x[0],x[1]-excess_votes_percentage))
+    winners_votes['Next Choice'] = ballots_df['Next Choice'].apply(lambda x: (x[0],x[1]+excess_votes_percentage))
+    
+    ballots_df.loc[winners_votes.index] = winners_votes
     
     
+    return ballots_df
+
 def eliminate_canidate(canidate, ballots_df):
     '''
     This method updates all the ballots and their ranks after removing the elminated
