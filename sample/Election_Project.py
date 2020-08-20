@@ -11,6 +11,29 @@ import pandas as pd
 import numpy as np
 
 # Helper Methods
+def add_weights_to_dataframe(ballots_df):
+    '''
+    Adds weights to each value in the dataframe.
+
+    Parameters
+    ----------
+    ballots_df : pd.DataFrame
+        A dataframe of all the ballots.
+
+    Returns
+    -------
+    None.
+
+    '''
+    
+    for column in ballots_df.columns:
+        for i,value in enumerate(ballots_df[column]):
+            if column == 1:
+                ballots_df.loc[i, column] = (value, 1)
+            else:
+                ballots_df.loc[i, column] = (value, 0) 
+    
+    
 def add_current_votes_column(ballots_df):
     '''
     Add a 'current vote' column setting it equal to the 'first choice votes' column 
@@ -149,27 +172,6 @@ def redistribute_votes(ballots_df, threshold, top_winner_above_threshold):
     '''
     
     
-    winners_votes = ballots_df[ballots_df['Current Votes']==top_winner_above_threshold]
-    amount_of_winners_votes = winners_votes.shape[0]
-    
-    excess_votes = amount_of_winners_votes - threshold
-    excess_votes_percent = np.round(excess_votes/amount_of_winners_votes,2)
-    
-    
-    print(excess_votes, excess_votes_percent)
-    
-    
-    total_votes_redistributed = 0
-    for next_choice in winners_votes['Next Choice'].unique():
-        
-        amount_of_next_choice_votes = len(winners_votes[winners_votes['Next Choice']==next_choice].index)
-        amount_of_votes_added = int(np.round(amount_of_next_choice_votes*excess_votes_percent))
-        
-        total_votes_redistributed += amount_of_votes_added
-        
-        
-        print(amount_of_next_choice_votes*excess_votes_percent, amount_of_votes_added, total_votes_redistributed)
-        #Problem - Votes dont amount to the total votes needed to be distributed
     
 def eliminate_canidate(canidate, ballots_df):
     '''
