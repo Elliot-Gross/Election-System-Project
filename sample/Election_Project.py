@@ -33,6 +33,35 @@ def add_weights_to_dataframe(ballots_df):
             else:
                 ballots_df.loc[i, column] = (value, 0) 
     
+
+def get_tallied_votes(canidates, ballots_df):
+    '''
+    Adds weights to each value in the dataframe.
+
+    Parameters
+    ----------
+    canidates : list
+    A list of canidates.
+    
+    ballots_df : pd.DataFrame
+        A dataframe of all the ballots.
+
+    Returns
+    -------
+    tallied_votes : dictionary
+        A dictionary of each canidate and their total votes.
+
+    '''
+    
+    tallied_votes = {}
+    for canidate in canidates:
+        tallied_votes[canidate] = 0
+        
+    for column in ['Current Votes', 'Next Choice']:
+        for i,value in enumerate(ballots_df[column]):
+            tallied_votes[value[0]] += value[1]
+    
+    return tallied_votes
     
 def add_current_votes_column(ballots_df):
     '''
@@ -116,7 +145,7 @@ def remove_invalid_votes(ballots_df):
     ballots_df.reset_index(drop=True, inplace=True)
 
 
-def get_top_winner_above_threshold(ballots_df, threshold):
+def get_top_winner_above_threshold(ballots_df, threshold, canidates):
     '''
     This Method returns the canidate with the most current votes, while also being
     above the threshold. If no canidate is above the threshold, this method returns None.
@@ -127,6 +156,8 @@ def get_top_winner_above_threshold(ballots_df, threshold):
         A dataframe of all the ballots.
     threshold : int
         The amount of votes needed to be considered a 'winner'.
+    canidates : list
+        A list of all the canidates
 
     Returns
     -------
@@ -138,9 +169,15 @@ def get_top_winner_above_threshold(ballots_df, threshold):
     top_winner_above_threshold = None
     
     
-    if ballots_df['Current Votes'].describe()['freq'] > threshold:
-        top_winner_above_threshold = ballots_df['Current Votes'].describe()['top']
+    tallied_votes = get_tallied_votes(canidates, ballots_df)
     
+    most_votes = 0
+    for key in tallied_votes.keys():
+        if tallied_votes[key] > threshold:
+            if tallied_votes[key] > most_votes:
+                top_winner_above_threshold = key
+                most_votes = tallied_votes[key]
+                
     return top_winner_above_threshold
 
 def redistribute_votes(ballots_df, threshold, top_winner_above_threshold):
