@@ -59,7 +59,7 @@ def get_tallied_votes(canidates, ballots_df):
         
     for column in ['Current Votes', 'Next Choice']:
         for i,value in enumerate(ballots_df[column]):
-            tallied_votes[value[0]] += value[1]
+            tallied_votes[value[0][0]] += value[1]
     
     for key in tallied_votes.keys():
         tallied_votes[key] = np.round(tallied_votes[key])
@@ -209,11 +209,12 @@ def redistribute_votes(ballots_df, threshold, top_winner_above_threshold, canida
         
     Returns
     -------
-    None.
+    ballots_df : pd.DataFrame
+        A list of all the ballots.
 
     '''
     
-    winners_votes = ballots_df[ballots_df['Current Votes'].apply(lambda x: x[0]) == top_winner_above_threshold]
+    winners_votes = ballots_df[ballots_df['Current Votes'].apply(lambda x: x[0][0]) == top_winner_above_threshold]
 
     tallied_votes = get_tallied_votes(canidates, ballots_df)
     amount_of_winner_votes = tallied_votes[top_winner_above_threshold]
@@ -223,8 +224,8 @@ def redistribute_votes(ballots_df, threshold, top_winner_above_threshold, canida
     
     print(excess_votes, excess_votes_percentage)
     
-    winners_votes['Current Votes'] = ballots_df['Current Votes'].apply(lambda x: (x[0],x[1]-excess_votes_percentage))
-    winners_votes['Next Choice'] = ballots_df['Next Choice'].apply(lambda x: (x[0],x[1]+excess_votes_percentage))
+    winners_votes['Current Votes'] = winners_votes['Current Votes'].apply(lambda x: (x[0],x[1]-excess_votes_percentage))
+    winners_votes['Next Choice'] = winners_votes['Next Choice'].apply(lambda x: (x[0],x[1]+excess_votes_percentage))
     
     ballots_df.loc[winners_votes.index] = winners_votes
     
@@ -249,15 +250,61 @@ def eliminate_canidate(canidate, ballots_df):
         The canidate being eliminated.
     ballots_df : pd.DataFrame
         A dataframe of all the ballots.
-
+        
     Returns
     -------
-    None.
+    ballots_df : pd.DataFrame
+        A dataframe of all the ballots.
 
     '''
-    pass
+    
+       
+    losers_votes = ballots_df[ballots_df['Current Votes'].apply(lambda x: x[0][0]) == canidate]
+    previous_weights = [i for i in losers_votes['Current Votes'].apply(lambda x: x[1])]
 
-def update_ballots_df(ballots_df):
+
+    losers_votes['Current Votes'] = [(losers_votes['Next Choice'].apply(lambda x: (x[0][0],x[0][1])).iloc[i],
+            losers_votes['Current Votes'].apply(lambda x: x[1]).iloc[i]) for i in range(len(losers_votes['Current Votes'].apply(lambda x: x[1])))]
+
+    for i,value in enumerate(losers_votes['Next Choice']):
+        i = losers_votes.index[i]
+        
+        next_rank = value[0][1]+1
+        next_choice_canidate = losers_votes.loc[i, next_rank][0][0]
+        while next_choice_canidate == np.nan:
+            next_rank += 1
+            next_choice_canidate = losers_votes.loc[i, next_rank][0][0]
+
+        losers_votes.loc[i, 'Next Choice'] = ((next_choice_canidate, next_rank),
+                                              losers_votes.loc[i, 'Next Choice'][1])
+           
+    losers_next_votes = ballots_df[ballots_df['Next Choice'].apply(lambda x: x[0][0]) == canidate]
+    
+    for column in ballots_df.columns:
+        for i,value in enumerate(ballots_df[column]):
+            if value[0][0] == canidate:
+                ballots_df.loc[i,column] = ((np.nan, column),value[1])
+                
+                
+    for i,value in enumerate(losers_next_votes['Next Choice']):
+        i = losers_next_votes.index[i]
+        
+        next_rank = value[0][1]+1
+        next_choice_canidate = losers_next_votes.loc[i, next_rank][0][0]
+        while next_choice_canidate == np.nan:
+            next_rank += 1
+            next_choice_canidate = losers_next_votes.loc[i, next_rank][0][0]
+
+        losers_next_votes.loc[i, 'Next Choice'] = ((next_choice_canidate, next_rank),
+                                              losers_next_votes.loc[i, 'Next Choice'][1])
+                
+    
+    ballots_df.loc[losers_votes.index] = losers_votes
+    ballots_df.loc[losers_next_votes.index] = losers_next_votes
+    return ballots_df
+    
+
+def update_ballots_df(ballots_df, canidates):
     '''
     This method updates the ballots dataframe after removing the elimanted canidate.
     
@@ -274,15 +321,31 @@ def update_ballots_df(ballots_df):
     ----------
     ballots_df : pd.DataFrame
         A dataframe of all the ballots.
-
+    canidates : list
+        A list of all the canidates.
+        
     Returns
     -------
-    None.
+    ballots_df : pd.DataFrame
+        A dataframe of all the ballots.
 
     '''
-    pass
-
-
+    
+    tallied_votes = get_tallied_votes(canidates, ballots_df)
+    
+    loser = None
+    least_votes = 9999999
+    for key in tallied_votes.keys():
+        if tallied_votes[key] < least_votes:
+            loser = key
+            least_votes = tallied_votes[key]
+            
+    canidates.remove(loser)
+    ballots_df = eliminate_canidate(loser, ballots_df)
+    
+    print(loser)
+    return ballots_df
+    
 # Wrapper Method
 def main(ballots_df, num_of_winners):
     '''
