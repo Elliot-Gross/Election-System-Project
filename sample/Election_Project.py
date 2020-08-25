@@ -204,6 +204,11 @@ def handle_invalid_votes(df):
         A dataframe with invalid votes removed.
 
     '''
+    df = undo_levels(df).fillna('Invalid')
+    df = df.set_index(df.columns.to_list()[:-1]).sort_index()
+    df = eliminate_candidate(df, 'Invalid')
+    
+    return df
 
 def run_rounds(df, num_of_winners, total_winners):
     '''
