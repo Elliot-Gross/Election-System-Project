@@ -237,6 +237,22 @@ def run_rounds(df, num_of_winners, total_winners):
 
     '''
     
+    if len(total_winners) < num_of_winners:
+        
+        df = handle_invalid_votes(df)
+
+        total_votes = df.shape[0]
+        threshold = math.floor(total_votes / (num_of_winners+1) + 1)
+    
+        if check_winner(df, threshold):
+            df, total_winners = handle_winner(df, threshold, total_winners)
+            return run_rounds(df, num_of_winners, total_winners)
+        
+        else:
+            df = handle_loser(df)
+            return run_rounds(df, num_of_winners, total_winners)
+    
+    return total_winners
     
     
 def main(csv_filename, candidates, num_of_winners):
