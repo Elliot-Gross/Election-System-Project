@@ -129,7 +129,7 @@ def handle_loser(df):
     return df
 
     
-def check_winner(df, threshold):
+def check_for_winner(df, threshold):
     '''
     This method first calculates the winner and returns the logistical outcome of the winner having
     more votes than the threshold.
@@ -172,6 +172,21 @@ def prepare_data(csv_filename, candidates):
         A multi-indexed, prepared, dataframe.
 
     '''
+    
+    #Create Column Names
+    column_names = ["Choice %s" % (i+1) for i in range(len(candidates))]
+    candidate_scores = dict([(candidate, 1) for candidate in candidates])
+    
+    #Read CSV
+    df = pd.read_csv(csv_filename, names=column_names)
+    df = df.reset_index(drop=True)
+    
+    #Set the Weight
+    df["Weight"] = 1
+    
+    #Convert and return a multi-index dataframe
+    return df.set_index(df.columns.to_list()[:-1]).sort_index()
+
     
 def handle_invalid_votes(df):
     '''
