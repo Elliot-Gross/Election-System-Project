@@ -148,6 +148,11 @@ def check_winner(df, threshold):
 
     '''
     
+    top_winner_row = df.reset_index().groupby(['Choice 1']).sum().sort_values(['Weight'], ascending=False).iloc[0,:]
+    winner_votes = top_winner_row['Weight']
+    
+    return winner_votes > threshold
+    
     
 def prepare_data(csv_filename, candidates):
     '''
