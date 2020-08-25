@@ -6,9 +6,13 @@ Created on Tue Aug 18 20:49:47 2020
 @author: elliotgross
 """
 
+
+
 # Imports
 import pandas as pd
 import numpy as np
+pd.set_option('mode.chained_assignment', None)
+np.seterr(all='ignore')
 
 # Helper Methods
 def add_weights_to_dataframe(ballots_df):
@@ -57,8 +61,10 @@ def get_tallied_votes(canidates, ballots_df):
     for canidate in canidates:
         tallied_votes[canidate] = 0
         
+    print(ballots_df)
     for column in ['Current Votes', 'Next Choice']:
         for i,value in enumerate(ballots_df[column]):
+
             tallied_votes[value[0][0]] += value[1]
     
     for key in tallied_votes.keys():
@@ -143,10 +149,11 @@ def remove_invalid_votes(ballots_df):
     None.
 
     '''
-    invalid_votes_index = list(ballots_df[ballots_df['Current Votes'].isna()==True].index)
+    invalid_votes_index = list(ballots_df[ballots_df['Current Votes'].apply(lambda x: x[0][0])==True].index)
     ballots_df.drop(invalid_votes_index, inplace=True)
     ballots_df.reset_index(drop=True, inplace=True)
 
+    print('Votes Eliminated:', len(invalid_votes_index))
 
 def get_top_winner_above_threshold(ballots_df, threshold, canidates):
     '''
@@ -220,9 +227,10 @@ def redistribute_votes(ballots_df, threshold, top_winner_above_threshold, canida
     amount_of_winner_votes = tallied_votes[top_winner_above_threshold]
     
     excess_votes = amount_of_winner_votes - threshold
-    excess_votes_percentage = np.round(excess_votes/amount_of_winner_votes,3)
+    excess_votes_percentage = excess_votes/amount_of_winner_votes
     
-    print(excess_votes, excess_votes_percentage)
+    print('Excess Votes:',excess_votes)
+    print('Excess Votes Percent:',excess_votes_percentage)
     
     winners_votes['Current Votes'] = winners_votes['Current Votes'].apply(lambda x: (x[0],x[1]-excess_votes_percentage))
     winners_votes['Next Choice'] = winners_votes['Next Choice'].apply(lambda x: (x[0],x[1]+excess_votes_percentage))
@@ -278,29 +286,48 @@ def eliminate_canidate(canidate, ballots_df):
         losers_votes.loc[i, 'Next Choice'] = ((next_choice_canidate, next_rank),
                                               losers_votes.loc[i, 'Next Choice'][1])
            
+    
     losers_next_votes = ballots_df[ballots_df['Next Choice'].apply(lambda x: x[0][0]) == canidate]
     
     for column in ballots_df.columns:
         for i,value in enumerate(ballots_df[column]):
             if value[0][0] == canidate:
-                ballots_df.loc[i,column] = ((np.nan, column),value[1])
+                ballots_df.loc[i,column] = ((np.nan, value[0][1]),value[1])
                 
-                
+    
     for i,value in enumerate(losers_next_votes['Next Choice']):
         i = losers_next_votes.index[i]
         
         next_rank = value[0][1]+1
         next_choice_canidate = losers_next_votes.loc[i, next_rank][0][0]
+        print(type(next_choice_canidate), next_choice_canidate)
         while next_choice_canidate == np.nan:
+            print(next_choice_canidate)
             next_rank += 1
             next_choice_canidate = losers_next_votes.loc[i, next_rank][0][0]
 
         losers_next_votes.loc[i, 'Next Choice'] = ((next_choice_canidate, next_rank),
                                               losers_next_votes.loc[i, 'Next Choice'][1])
+        
+    ballots_df.loc[losers_votes.index] = losers_votes
+    
+    for i,value in enumerate(ballots_df['Next Choice']):
+        i = ballots_df.index[i]
+        
+        next_rank = value[0][1]+1
+        
+        next_choice_canidate = ballots_df.loc[i, next_rank][0][0]
+        
+        while next_choice_canidate == np.nan:
+            next_rank += 1
+            next_choice_canidate = ballots_df.loc[i, next_rank][0][0]
+
+            if next_choice_canidate != np.nan:
+                ballots_df.loc[i, 'Next Choice'] = ((next_choice_canidate, next_rank),
+                                                    ballots_df.loc[i, 'Next Choice'][1])
                 
     
-    ballots_df.loc[losers_votes.index] = losers_votes
-    ballots_df.loc[losers_next_votes.index] = losers_next_votes
+
     return ballots_df
     
 
@@ -333,6 +360,7 @@ def update_ballots_df(ballots_df, canidates):
     
     tallied_votes = get_tallied_votes(canidates, ballots_df)
     
+    
     loser = None
     least_votes = 9999999
     for key in tallied_votes.keys():
@@ -343,11 +371,15 @@ def update_ballots_df(ballots_df, canidates):
     canidates.remove(loser)
     ballots_df = eliminate_canidate(loser, ballots_df)
     
-    print(loser)
+    print('\n')
+    print('Tallied Votes:',tallied_votes)
+    print('Eliminated:',loser)
+    print('\n')
+    
     return ballots_df
     
 # Wrapper Method
-def main(ballots_df, num_of_winners):
+def main(ballots_df, num_of_winners, canidates):
     '''
     This method puts together all the helper methods and returns the total winners of the
     election.
@@ -358,7 +390,9 @@ def main(ballots_df, num_of_winners):
         A dataframe of all the ballots.
     num_of_winners : int
         The number of winners in the election.
-
+    canidates : list
+        A list of all the canidates.
+        
     Returns
     -------
     total_winners : list
@@ -366,6 +400,44 @@ def main(ballots_df, num_of_winners):
 
     '''
     
-    total_winners = []
     
+    total_winners = []
+    add_weights_to_dataframe(ballots_df)
+
+    add_current_votes_column(ballots_df)
+    add_next_choice_column(ballots_df)
+    
+    print(ballots_df)
+    
+    while len(total_winners) < num_of_winners:
+        threshold = calculate_threshold(ballots_df, num_of_winners)
+        remove_invalid_votes(ballots_df)
+        top_winner_above_threshold = get_top_winner_above_threshold(ballots_df,
+                                                                    threshold, canidates)
+        
+        while top_winner_above_threshold != None:
+            print('\n\n\n')
+            print(get_tallied_votes(canidates, ballots_df))
+            print('threshold:',threshold)
+            print('winner:',top_winner_above_threshold)
+            
+            
+            total_winners.append(top_winner_above_threshold)
+            ballots_df = redistribute_votes(ballots_df, threshold,
+                                            top_winner_above_threshold, canidates)
+            top_winner_above_threshold = get_top_winner_above_threshold(ballots_df,
+                                                                        threshold, canidates)
+            
+            if len(total_winners) == num_of_winners:
+                top_winner_above_threshold = None
+                
+        print('\n\n\n')
+        print(ballots_df)
+        ballots_df = update_ballots_df(ballots_df, canidates)
+
     return total_winners
+
+
+
+
+
