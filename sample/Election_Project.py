@@ -23,11 +23,12 @@ def undo_levels(df):
 
     Returns
     -------
-    df : pd.DataFrame
+    : pd.DataFrame
         A dataframe of all the votes, with reseted indecies.
 
     '''
     
+    return df.reset_index().drop(['index','level_0'], axis=1, errors='ignore')
 
 def eliminate_canidate(df, canidate):
     '''
