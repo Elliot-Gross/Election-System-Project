@@ -275,3 +275,9 @@ def main(csv_filename, candidates, num_of_winners):
         The winners of the election.
 
     '''
+    df = prepare_data(csv_filename, candidates)
+
+    total_winners = run_rounds(df, num_of_winners, [])
+    
+    return total_winners
+    
