@@ -30,25 +30,38 @@ def undo_levels(df):
     
     return df.reset_index().drop(['index','level_0'], axis=1, errors='ignore')
 
-def eliminate_canidate(df, canidate):
+def eliminate_candidate(df, candidate):
     '''
-    This method gets rid of all the instances of the inputed canidate and shifts the next choice vote 
-    over. 
+    This method gets rid of all the instances of the inputed candidate and shifts 
+    the next choice vote over. 
 
     Parameters
     ----------
     df : pd.DataFrame
         A dataframe of all the votes.
-    canidate : String
-        The canidate to be removed.
+    candidate : String
+        The candidate to be removed.
 
     Returns
     -------
     df : pd.DataFrame
-        A dataframe with the inputed canidate removed
+        A dataframe with the inputed candidate removed
 
     '''
+    df = undo_levels(df)
     
+
+    for i,column in enumerate(df.columns.to_list()[:-1]):
+        candidate_to_remove_index = df[df[column] == candidate].index
+        
+        #Shift from current column to final choice
+        df.loc[candidate_to_remove_index,df.columns.to_list()[i:-1]] = df.loc[candidate_to_remove_index,
+                                                                             df.columns.to_list()[:-1]].shift(-1,axis=1)
+        
+    # Re-Add Levels
+    df = df.set_index(df.columns.to_list()[:-1]).sort_index()
+    
+    return df
     
 def handle_winner(df, threshold, total_winners):
     '''
@@ -110,17 +123,17 @@ def check_winner(df, threshold):
     '''
     
     
-def prepare_data(csv_filename, canidates):
+def prepare_data(csv_filename, candidates):
     '''
-    This method takes in a csv filename and the canidates and returns a multi-indexed,
+    This method takes in a csv filename and the candidates and returns a multi-indexed,
     prepared dataframe.
 
     Parameters
     ----------
     csv_filename : String
         A filepath to the votes data.
-    canidates : list
-        A list of all the canidates.
+    candidates : list
+        A list of all the candidates.
 
     Returns
     -------
@@ -132,7 +145,7 @@ def prepare_data(csv_filename, canidates):
 def handle_invalid_votes(df):
     '''
     This method converts all NaN votes to 'Invalid' and then eliminates all the 'Invalid' votes
-    with the eliminate_canidates(df, canidate) method.
+    with the eliminate_candidates(df, candidate) method.
 
     Parameters
     ----------
@@ -175,7 +188,7 @@ def run_rounds(df, num_of_winners, total_winners):
     
     
     
-def main(csv_filename, canidates, num_of_winners):
+def main(csv_filename, candidates, num_of_winners):
     '''
     This method first prepares the data, then runs the run_rounds(df, num_of_winners, total_winners)
     method and saves the total winners to a variable. The total_winners are then returned.
@@ -184,8 +197,8 @@ def main(csv_filename, canidates, num_of_winners):
     ----------
     csv_filename : String
         A filepath to the votes data.
-    canidates : list
-        A list of all the canidates.
+    candidates : list
+        A list of all the candidates.
     num_of_winners : int
         The desired amount of winners.
 
