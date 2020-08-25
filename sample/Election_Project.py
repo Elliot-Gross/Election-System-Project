@@ -123,6 +123,12 @@ def handle_loser(df):
 
     '''
     
+    loser_name = df.reset_index().groupby(['Choice 1']).sum().sort_values(['Weight']).iloc[0,:].name
+    df = eliminate_candidate(df, loser_name)
+    
+    return df
+
+    
 def check_winner(df, threshold):
     '''
     This method first calculates the winner and returns the logistical outcome of the winner having
