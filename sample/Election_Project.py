@@ -87,6 +87,26 @@ def handle_winner(df, threshold, total_winners):
 
     '''
     
+    top_winner_row = df.reset_index().groupby(['Choice 1']).sum().sort_values(['Weight'], ascending=False).iloc[0,:]
+    
+    winner_name, winner_votes = top_winner_row.name, top_winner_row['Weight']
+
+    if winner_votes > threshold:
+        new_weight = (winner_votes-threshold)/winner_votes
+        
+        df = undo_levels(df)
+        
+        #Redistribute Vote
+        winner_rows_index = df[df['Choice 1'] == winner_name].index
+        df.loc[winner_rows_index,'Weight'] *= new_weight
+        
+        #Get Rid of Winner
+        df = eliminate_candidate(df, winner_name)
+
+        total_winners.append(winner_name)
+        
+    return df, total_winners
+
 def handle_loser(df):
     '''
     This method first calculates the loser and then removes them from the dataframe
