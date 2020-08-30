@@ -177,6 +177,8 @@ def prepare_data(csv_filename, candidates):
     column_names = ["Choice %s" % (i+1) for i in range(len(candidates))]
     candidate_scores = dict([(candidate, 1) for candidate in candidates])
     
+    handle_invalid_votes(csv_filename)
+    
     #Read CSV
     df = pd.read_csv(csv_filename, names=column_names)
     df = df.reset_index(drop=True)
@@ -188,10 +190,40 @@ def prepare_data(csv_filename, candidates):
     return df.set_index(df.columns.to_list()[:-1]).sort_index()
 
     
-def handle_invalid_votes(df):
+def handle_invalid_votes(csv_filename):
     '''
-    This method converts all NaN votes to 'Invalid' and then eliminates all the 'Invalid' votes
-    with the eliminate_candidates(df, candidate) method.
+    This method pushes all the empty votes to the end and removes all the empty ballots.
+
+    Parameters
+    ----------
+    csv_filename : String
+        A string of the name of the csv file.
+
+    '''
+    file = open(csv_filename)
+    file_content = file.read()
+    file_rows = file_content.split('\n')
+    
+    cleaned_rows = []
+    for row in file_rows:
+        choices = row.split(',')
+    
+        is_empty = True
+        for choice in choices:
+            if choice == '':
+                choices.append(choices.pop(choices.index(choice)))  
+            else:
+                is_empty = False
+                
+        if not is_empty:
+            cleaned_rows.append(','.join(choices))
+            
+    file = open(csv_filename, 'w')
+    file = file.write('\n'.join(cleaned_rows))
+ 
+def remove_invalid_votes(df):
+    '''
+    This method removes all the invalid votes in the first choice column.
 
     Parameters
     ----------
@@ -204,9 +236,8 @@ def handle_invalid_votes(df):
         A dataframe with invalid votes removed.
 
     '''
-    df = undo_levels(df).fillna('Invalid')
-    df = df.set_index(df.columns.to_list()[:-1]).sort_index()
-    df = eliminate_candidate(df, 'Invalid')
+    df = undo_levels(df)
+    df = df.drop(df[df['Choice 1'] != df['Choice 1']].index)
     
     return df
 
@@ -237,10 +268,9 @@ def run_rounds(df, num_of_winners, total_winners):
 
     '''
     
-    if len(total_winners) < num_of_winners:
-        
-        #df = handle_invalid_votes(df)
+    df = remove_invalid_votes(df)
 
+    if len(total_winners) < num_of_winners:
         
         total_votes = df.shape[0]
         threshold = math.floor(total_votes / (num_of_winners+1) + 1)
